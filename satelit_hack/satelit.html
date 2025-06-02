@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satellite Control System v1.72</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+        }
+        .satellite-map {
+            background: url('https://upload.wikimedia.org/wikipedia/commons/2/23/Blank_map_of_the_world_%28polar_projection%29.svg') no-repeat center;
+            background-size: contain;
+            height: 400px;
+            position: relative;
+        }
+        .satellite-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ff0000;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 0.4; }
+            100% { transform: scale(0.8); opacity: 0.8; }
+        }
+        .terminal-box {
+            background: #000;
+            border: 2px solid #0f0;
+            height: 200px;
+            overflow-y: auto;
+            padding: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <h1 class="text-center mb-4">🛰 SATELLITE CONTROL SYSTEM v1.UJI COBA</h1>
+        
+        <!-- Status Section -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h3>SYSTEM STATUS: <span id="status" class="badge bg-danger">OFFLINE</span></h3>
+                <div class="progress mt-2" style="height: 25px;">
+                    <div id="progress-bar" class="progress-bar progress-bar-striped bg-success" 
+                         role="progressbar" style="width: 0%">0%</div>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <button class="btn btn-outline-success me-2" onclick="connectToSatellite()">Initialize Connection</button>
+                <button class="btn btn-outline-danger" onclick="shutdownSystem()">Emergency Shutdown</button>
+            </div>
+        </div>
+
+        <!-- Satellite Map -->
+        <div class="satellite-map mb-4" id="satelliteMap">
+            <div class="satellite-marker" style="left: 45%; top: 30%;"></div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="terminal-box">
+                    <div id="terminal-output"></div>
+                </div>
+                <div class="input-group mt-2">
+                    <input type="text" id="commandInput" class="form-control bg-dark text-success" 
+                           placeholder="Enter command..." onkeypress="handleCommandInput(event)">
+                    <button class="btn btn-outline-success" onclick="executeCommand()">Send</button>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <div class="card bg-dark">
+                            <div class="card-body">
+                                <h5 class="card-title">Payload Control</h5>
+                                <button class="btn btn-outline-warning w-100 mb-2" 
+                                        onclick="togglePayload('camera')">Toggle Camera</button>
+                                <button class="btn btn-outline-warning w-100" 
+                                        onclick="togglePayload('comms')">Toggle Communications</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="card bg-dark">
+                            <div class="card-body">
+                                <h5 class="card-title">Orbit Adjustment</h5>
+                                <input type="number" id="orbitAltitude" class="form-control bg-dark mb-2" 
+                                       placeholder="Altitude (km)">
+                                <button class="btn btn-outline-info w-100" 
+                                        onclick="adjustOrbit()">Adjust Orbit</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isConnected = false;
+        let connectionProgress = 0;
+        let connectionInterval;
+
+        function connectToSatellite() {
+            if (!isConnected) {
+                connectionInterval = setInterval(() => {
+                    connectionProgress += Math.floor(Math.random() * 15) + 5;
+                    if (connectionProgress >= 100) {
+                        connectionProgress = 100;
+                        clearInterval(connectionInterval);
+                        isConnected = true;
+                        updateStatus('CONNECTED', 'success');
+                        addTerminalMessage('Connection established to SAT-72');
+                        document.getElementById('progress-bar').style.width = '100%';
+                        document.getElementById('progress-bar').innerHTML = '100%';
+                    } else {
+                        document.getElementById('progress-bar').style.width = connectionProgress + '%';
+                        document.getElementById('progress-bar').innerHTML = connectionProgress + '%';
+                    }
+                }, 500);
+                updateStatus('CONNECTING...', 'warning');
+            }
+        }
+
+        function shutdownSystem() {
+            isConnected = false;
+            clearInterval(connectionInterval);
+            connectionProgress = 0;
+            updateStatus('OFFLINE', 'danger');
+            document.getElementById('progress-bar').style.width = '0%';
+            document.getElementById('progress-bar').innerHTML = '0%';
+            addTerminalMessage('System shutdown initiated');
+        }
+
+        function updateStatus(text, color) {
+            const statusElement = document.getElementById('status');
+            statusElement.className = `badge bg-${color}`;
+            statusElement.innerText = text;
+        }
+
+        function addTerminalMessage(message) {
+            const terminal = document.getElementById('terminal-output');
+            terminal.innerHTML += `> ${message}<br>`;
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function handleCommandInput(e) {
+            if (e.key === 'Enter') executeCommand();
+        }
+
+        function executeCommand() {
+            const commandInput = document.getElementById('commandInput');
+            const command = commandInput.value.toLowerCase();
+            commandInput.value = '';
+            
+            if (!isConnected) {
+                addTerminalMessage('Error: Not connected to satellite');
+                return;
+            }
+
+            switch(command) {
+                case 'override security':
+                    addTerminalMessage('Attempting security override...');
+                    setTimeout(() => addTerminalMessage('Security protocols bypassed'), 2000);
+                    break;
+                case 'enable admin':
+                    addTerminalMessage('Admin privileges granted');
+                    break;
+                case 'dump database':
+                    addTerminalMessage('Downloading satellite databases...');
+                    break;
+                default:
+                    addTerminalMessage(`Unknown command: ${command}`);
+            }
+        }
+
+        function togglePayload(payloadType) {
+            if (!isConnected) {
+                alert('Not connected to satellite!');
+                return;
+            }
+            alert(`${payloadType.charAt(0).toUpperCase() + payloadType.slice(1)} payload toggled`);
+        }
+
+        function adjustOrbit() {
+            const altitude = document.getElementById('orbitAltitude').value;
+            if (!altitude) return;
+            
+            if (!isConnected) {
+                alert('Not connected to satellite!');
+                return;
+            }
+            
+            addTerminalMessage(`Adjusting orbit to ${altitude} km...`);
+        }
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
